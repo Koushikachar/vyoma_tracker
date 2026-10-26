@@ -1,0 +1,22 @@
+name: CI
+on: [push, pull_request]
+permissions:
+  contents: read            # least privilege: CI never needs to write to the repo
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: npm }
+      # `npm ci` needs a committed package-lock.json (run `npm install` once locally and commit it): reproducible, tamper-evident installs.
+      - run: npm ci --no-audit --no-fund
+      - run: npx prisma generate
+      - run: npx tsc --noEmit
+      - run: npx vitest run
+      - run: npm audit --omit=dev --audit-level=high
